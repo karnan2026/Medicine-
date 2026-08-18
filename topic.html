@@ -52,7 +52,7 @@
     const { data: topic, error } = await db
       .from("topics")
       .select(`
-        id, title, body, created_at,
+        id, title, body, created_at, created_by,
         systems ( id, name ),
         profiles!topics_created_by_fkey ( display_name )
       `)
@@ -67,10 +67,13 @@
 
     document.title = topic.title + " — Medicine";
 
+    const isAdmin = myRole === "admin";
+    const canEditTopic = session && (session.user.id === topic.created_by || isAdmin);
+
     const { data: answers, error: ansError } = await db
       .from("answers")
       .select(`
-        id, body, status, created_at, reviewed_at,
+        id, body, status, created_at, reviewed_at, created_by,
         author:profiles!answers_created_by_fkey ( display_name ),
         reviewer:profiles!answers_reviewed_by_fkey ( display_name )
       `)
@@ -82,7 +85,7 @@
     const systemName = topic.systems ? topic.systems.name : "Uncategorized";
 
     wrap.innerHTML = `
-      <div class="topic-header">
+      <div class="topic-header" id="topicHeader">
         <div class="topic-top">
           <a class="tag" href="system.html?id=${topic.systems ? topic.systems.id : ''}" style="text-decoration:none;">${escapeHtml(systemName)}</a>
         </div>
@@ -92,6 +95,12 @@
           <span>${dateGroupLabel(topic.created_at)}, ${timeLabel(topic.created_at)}</span>
         </div>
         <div class="topic-body">${escapeHtml(topic.body)}</div>
+        ${canEditTopic ? `
+          <div style="margin-top:12px;">
+            <button class="admin-btn" id="editTopicBtn">Edit</button>
+            <button class="admin-btn danger" id="deleteTopicBtn">Delete</button>
+          </div>
+        ` : ""}
       </div>
 
       <div class="answers-heading">${answers ? answers.length : 0} Answer${answers && answers.length === 1 ? '' : 's'}</div>
@@ -119,6 +128,24 @@
         `}
       </div>
     `;
+
+    if (canEditTopic) {
+      document.getElementById("editTopicBtn").addEventListener("click", () => {
+        showTopicEditForm(topic);
+      });
+      document.getElementById("deleteTopicBtn").addEventListener("click", async () => {
+        if (!confirm("Delete this topic? This can't be undone from the site.")) return;
+        const { error: delError } = await db
+          .from("topics")
+          .update({ is_deleted: true, updated_by: session.user.id, updated_at: new Date().toISOString() })
+          .eq("id", topicId);
+        if (delError) {
+          alert(delError.message);
+          return;
+        }
+        window.location.href = "index.html";
+      });
+    }
 
     if (session) {
       document.getElementById("answerForm").addEventListener("submit", async (e) => {
@@ -173,6 +200,108 @@
         });
       });
     }
+
+    document.querySelectorAll(".edit-answer-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const answerId = btn.dataset.answerId;
+        const card = document.getElementById("answer-" + answerId);
+        const currentBody = decodeURIComponent(btn.dataset.body);
+        card.innerHTML = `
+          <div class="field">
+            <textarea id="editAnswerBody-${answerId}">${escapeHtml(currentBody)}</textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="saveAnswerBtn-${answerId}" style="width:auto;">Save</button>
+            <button class="btn btn-secondary" id="cancelAnswerBtn-${answerId}" style="width:auto;">Cancel</button>
+          </div>
+        `;
+        document.getElementById("saveAnswerBtn-" + answerId).addEventListener("click", async () => {
+          const newBody = document.getElementById("editAnswerBody-" + answerId).value.trim();
+          if (!newBody) return;
+
+          const { error: updateError } = await db
+            .from("answers")
+            .update({ body: newBody, updated_by: session.user.id, updated_at: new Date().toISOString() })
+            .eq("id", answerId);
+
+          if (updateError) {
+            alert(updateError.message);
+            return;
+          }
+
+          await db.from("answer_revisions").insert({
+            answer_id: answerId,
+            body: newBody,
+            edited_by: session.user.id,
+          });
+
+          await loadTopic();
+        });
+        document.getElementById("cancelAnswerBtn-" + answerId).addEventListener("click", () => loadTopic());
+      });
+    });
+
+    document.querySelectorAll(".delete-answer-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Delete this answer?")) return;
+        const answerId = btn.dataset.answerId;
+        const { error: delError } = await db
+          .from("answers")
+          .update({ is_deleted: true, updated_by: session.user.id, updated_at: new Date().toISOString() })
+          .eq("id", answerId);
+        if (delError) {
+          alert(delError.message);
+          return;
+        }
+        await loadTopic();
+      });
+    });
+  }
+
+  function showTopicEditForm(topic) {
+    const headerEl = document.getElementById("topicHeader");
+    headerEl.innerHTML = `
+      <div class="field">
+        <label for="editTitle">Title</label>
+        <input type="text" id="editTitle" value="${escapeHtml(topic.title)}">
+      </div>
+      <div class="field">
+        <label for="editBody">Details</label>
+        <textarea id="editBody">${escapeHtml(topic.body)}</textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="saveTopicBtn" style="width:auto;">Save</button>
+        <button class="btn btn-secondary" id="cancelTopicBtn" style="width:auto;">Cancel</button>
+      </div>
+    `;
+
+    document.getElementById("saveTopicBtn").addEventListener("click", async () => {
+      const newTitle = document.getElementById("editTitle").value.trim();
+      const newBody = document.getElementById("editBody").value.trim();
+      if (!newTitle || !newBody) return;
+
+      const { data: { session } } = await db.auth.getSession();
+
+      const { error: updateError } = await db
+        .from("topics")
+        .update({ title: newTitle, body: newBody, updated_by: session.user.id, updated_at: new Date().toISOString() })
+        .eq("id", topicId);
+
+      if (updateError) {
+        alert(updateError.message);
+        return;
+      }
+
+      await db.from("topic_revisions").insert({
+        topic_id: topicId,
+        body: newBody,
+        edited_by: session.user.id,
+      });
+
+      await loadTopic();
+    });
+
+    document.getElementById("cancelTopicBtn").addEventListener("click", () => loadTopic());
   }
 
   function renderAnswer(a) {
@@ -181,6 +310,8 @@
     const reviewerProfile = a.reviewer;
     const status = a.status || "unverified";
     const cardClass = status === "correct" ? "verdict-correct" : status === "wrong" ? "verdict-wrong" : "";
+    const isAdmin = myRole === "admin";
+    const canEditAnswer = session && (session.user.id === a.created_by || isAdmin);
 
     let reviewLine = "";
     if (status !== "unverified" && reviewerProfile) {
@@ -194,8 +325,15 @@
       </div>
     ` : "";
 
+    const ownerButtons = canEditAnswer ? `
+      <div style="margin-top:10px;">
+        <button class="admin-btn edit-answer-btn" data-answer-id="${a.id}" data-body="${encodeURIComponent(a.body)}">Edit</button>
+        <button class="admin-btn danger delete-answer-btn" data-answer-id="${a.id}">Delete</button>
+      </div>
+    ` : "";
+
     return `
-      <div class="answer-card ${cardClass}">
+      <div class="answer-card ${cardClass}" id="answer-${a.id}">
         <div class="answer-body">${escapeHtml(a.body)}</div>
         <div class="answer-footer">
           <div class="topic-meta">
@@ -206,6 +344,7 @@
           ${reviewButtons}
         </div>
         ${reviewLine}
+        ${ownerButtons}
       </div>
     `;
   }
