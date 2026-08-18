@@ -1,28 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-  --ink: #121a1d;
-  --paper: #1a2327;
-  --paper-raised: #202b30;
-  --text: #e8ede7;
-  --text-dim: #93a3a1;
-  --hairline: #2e3a3d;
-  --teal: #4fb6ae;
-  --teal-dim: #2c4644;
-  --clay: #d46a54;
-  --clay-dim: #442d29;
-  --amber: #d4a854;
+  --sky: #EAF3FC;
+  --ink: #F2F6FB;
+  --paper: #FFFFFF;
+  --paper-raised: #EEF3FA;
+  --text: #1E2A3A;
+  --text-dim: #64748B;
+  --hairline: #DCE7F2;
+  --teal: #0B8074;
+  --teal-bright: #14B8A6;
+  --teal-dim: #E1F7F5;
+  --clay: #DC5B44;
+  --clay-dim: #FFE7E1;
+  --amber: #C4791C;
+  --amber-dim: #FFF1DC;
+  --violet: #6D5DD3;
+  --violet-dim: #EDEAFC;
+  --shadow: 0 1px 3px rgba(30,42,58,0.07), 0 1px 2px rgba(30,42,58,0.05);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--ink);
+  background-color: var(--sky);
   background-image:
-    linear-gradient(var(--hairline) 1px, transparent 1px),
-    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
-  background-size: 28px 28px;
+    radial-gradient(circle at 12% 8%, rgba(11,128,116,0.10), transparent 38%),
+    radial-gradient(circle at 88% 0%, rgba(109,93,211,0.10), transparent 42%),
+    radial-gradient(circle at 50% 100%, rgba(196,121,28,0.08), transparent 46%);
   background-attachment: fixed;
   color: var(--text);
   font-family: 'IBM Plex Sans', sans-serif;
@@ -58,8 +64,9 @@ h1, h2, h3, .display {
   max-width: 380px;
   background: var(--paper);
   border: 1px solid var(--hairline);
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
+  box-shadow: var(--shadow);
 }
 
 /* Signature element: animated ECG trace across the top of the card */
@@ -73,8 +80,8 @@ h1, h2, h3, .display {
 
 .trace path {
   fill: none;
-  stroke: var(--teal);
-  stroke-width: 1.5;
+  stroke: url(#traceGradient);
+  stroke-width: 2;
   stroke-dasharray: 340;
   stroke-dashoffset: 340;
   animation: draw 2.6s ease-in-out infinite;
@@ -132,7 +139,7 @@ h1, h2, h3, .display {
   width: 100%;
   background: var(--ink);
   border: 1px solid var(--hairline);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 11px 12px;
   color: var(--text);
   font-family: 'IBM Plex Sans', sans-serif;
@@ -140,7 +147,7 @@ h1, h2, h3, .display {
 }
 
 .field input:focus {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--teal-bright);
   outline-offset: 1px;
   border-color: var(--teal);
 }
@@ -148,7 +155,7 @@ h1, h2, h3, .display {
 .btn {
   width: 100%;
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: none;
   font-family: 'IBM Plex Sans', sans-serif;
   font-weight: 600;
@@ -158,11 +165,11 @@ h1, h2, h3, .display {
 
 .btn-primary {
   background: var(--teal);
-  color: #0d1517;
+  color: #ffffff;
   margin-top: 4px;
 }
 
-.btn-primary:hover { background: #63c4bd; }
+.btn-primary:hover { background: var(--teal-bright); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .switch-mode {
@@ -186,14 +193,14 @@ h1, h2, h3, .display {
 .msg {
   font-size: 13px;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   margin-bottom: 16px;
   display: none;
 }
 
 .msg.show { display: block; }
-.msg.error { background: var(--clay-dim); color: #f0a390; border: 1px solid var(--clay); }
-.msg.ok { background: var(--teal-dim); color: #a8ded8; border: 1px solid var(--teal); }
+.msg.error { background: var(--clay-dim); color: var(--clay); border: 1px solid var(--clay); }
+.msg.ok { background: var(--teal-dim); color: var(--teal); border: 1px solid var(--teal); }
 
 /* ---- Site nav ---- */
 
@@ -204,8 +211,11 @@ h1, h2, h3, .display {
   padding: 16px 24px;
   border-bottom: 1px solid var(--hairline);
   background: var(--paper);
+  box-shadow: var(--shadow);
   flex-wrap: wrap;
   gap: 12px;
+  position: relative;
+  z-index: 2;
 }
 
 .nav-brand {
@@ -216,6 +226,10 @@ h1, h2, h3, .display {
 
 .nav-brand .display {
   font-size: 19px;
+  background: linear-gradient(90deg, var(--teal), var(--violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .nav-brand .eyebrow {
@@ -257,7 +271,7 @@ h1, h2, h3, .display {
   background: none;
   border: 1px solid var(--hairline);
   color: var(--text-dim);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 6px 12px;
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 13px;
@@ -272,13 +286,15 @@ h1, h2, h3, .display {
 .btn-new {
   display: inline-block;
   background: var(--teal);
-  color: #0d1517;
+  color: #ffffff;
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-weight: 600;
   font-size: 13px;
   text-decoration: none;
 }
+
+.btn-new:hover { background: var(--teal-bright); }
 
 /* ---- Page shell ---- */
 
@@ -324,15 +340,16 @@ h1, h2, h3, .display {
   display: block;
   background: var(--paper);
   border: 1px solid var(--hairline);
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 16px 18px;
   margin-bottom: 10px;
   text-decoration: none;
   color: var(--text);
+  box-shadow: var(--shadow);
 }
 
 .topic-card:hover {
-  border-color: var(--teal);
+  border-color: var(--teal-bright);
 }
 
 .topic-top {
@@ -349,10 +366,10 @@ h1, h2, h3, .display {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 3px 8px;
-  border-radius: 3px;
-  background: var(--paper-raised);
-  color: var(--text-dim);
-  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  background: var(--violet-dim);
+  color: var(--violet);
+  border: 1px solid var(--violet-dim);
 }
 
 .topic-title {
@@ -370,7 +387,7 @@ h1, h2, h3, .display {
   flex-wrap: wrap;
 }
 
-.answer-count.has-verified { color: var(--teal); }
+.answer-count.has-verified { color: var(--teal); font-weight: 600; }
 
 .empty-state {
   color: var(--text-dim);
@@ -398,19 +415,22 @@ h1, h2, h3, .display {
   display: block;
   background: var(--paper);
   border: 1px solid var(--hairline);
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 18px;
   text-decoration: none;
   color: var(--text);
+  box-shadow: var(--shadow);
 }
 
 .system-card:hover {
-  border-color: var(--teal);
+  border-color: var(--teal-bright);
 }
 
 .system-card .display {
   font-size: 17px;
   margin-bottom: 4px;
+  background: none;
+  -webkit-text-fill-color: var(--text);
 }
 
 .system-card .system-count {
@@ -434,8 +454,9 @@ h1, h2, h3, .display {
 .form-card {
   background: var(--paper);
   border: 1px solid var(--hairline);
-  border-radius: 6px;
+  border-radius: 10px;
   padding: 24px;
+  box-shadow: var(--shadow);
 }
 
 .field select,
@@ -443,7 +464,7 @@ h1, h2, h3, .display {
   width: 100%;
   background: var(--ink);
   border: 1px solid var(--hairline);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 11px 12px;
   color: var(--text);
   font-family: 'IBM Plex Sans', sans-serif;
@@ -452,7 +473,7 @@ h1, h2, h3, .display {
 
 .field select:focus,
 .field textarea:focus {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--teal-bright);
   outline-offset: 1px;
   border-color: var(--teal);
 }
@@ -514,13 +535,14 @@ h1, h2, h3, .display {
 .answer-card {
   background: var(--paper);
   border: 1px solid var(--hairline);
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 16px 18px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow);
 }
 
-.answer-card.verdict-correct { border-color: var(--teal); }
-.answer-card.verdict-wrong { border-color: var(--clay); opacity: 0.85; }
+.answer-card.verdict-correct { border-color: var(--teal-bright); border-width: 1.5px; }
+.answer-card.verdict-wrong { border-color: var(--clay); border-width: 1.5px; opacity: 0.9; }
 
 .answer-body {
   font-size: 14.5px;
@@ -543,7 +565,7 @@ h1, h2, h3, .display {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 3px 9px;
-  border-radius: 3px;
+  border-radius: 20px;
 }
 
 .verdict-badge.correct { background: var(--teal-dim); color: var(--teal); }
@@ -560,15 +582,15 @@ h1, h2, h3, .display {
   font-size: 12px;
   font-weight: 500;
   padding: 5px 11px;
-  border-radius: 3px;
+  border-radius: 6px;
   cursor: pointer;
   border: 1px solid var(--hairline);
   background: none;
   color: var(--text-dim);
 }
 
-.review-controls button.mark-correct:hover { border-color: var(--teal); color: var(--teal); }
-.review-controls button.mark-wrong:hover { border-color: var(--clay); color: var(--clay); }
+.review-controls button.mark-correct:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+.review-controls button.mark-wrong:hover { border-color: var(--clay); color: var(--clay); background: var(--clay-dim); }
 
 /* ---- Admin panel ---- */
 
@@ -586,8 +608,9 @@ h1, h2, h3, .display {
   border-collapse: collapse;
   background: var(--paper);
   border: 1px solid var(--hairline);
-  border-radius: 5px;
+  border-radius: 8px;
   overflow: hidden;
+  box-shadow: var(--shadow);
 }
 
 .admin-table th {
@@ -613,7 +636,7 @@ h1, h2, h3, .display {
 .role-select {
   background: var(--ink);
   border: 1px solid var(--hairline);
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--text);
   font-family: 'IBM Plex Sans', sans-serif;
   font-size: 13px;
@@ -625,7 +648,7 @@ h1, h2, h3, .display {
   font-size: 12.5px;
   font-weight: 500;
   padding: 5px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   border: 1px solid var(--hairline);
   background: none;
@@ -633,21 +656,21 @@ h1, h2, h3, .display {
   margin-right: 6px;
 }
 
-.admin-btn:hover { border-color: var(--teal); color: var(--teal); }
-.admin-btn.danger:hover { border-color: var(--clay); color: var(--clay); }
+.admin-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+.admin-btn.danger:hover { border-color: var(--clay); color: var(--clay); background: var(--clay-dim); }
 
 .badge-role {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10.5px;
   text-transform: uppercase;
   padding: 2px 7px;
-  border-radius: 3px;
+  border-radius: 20px;
   background: var(--paper-raised);
   color: var(--text-dim);
 }
 
-.badge-role.admin { color: var(--amber); }
-.badge-role.reviewer { color: var(--teal); }
+.badge-role.admin { color: var(--amber); background: var(--amber-dim); }
+.badge-role.reviewer { color: var(--violet); background: var(--violet-dim); }
 
 .inline-form {
   display: flex;
@@ -659,7 +682,7 @@ h1, h2, h3, .display {
   flex: 1;
   background: var(--ink);
   border: 1px solid var(--hairline);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 9px 12px;
   color: var(--text);
   font-family: 'IBM Plex Sans', sans-serif;
