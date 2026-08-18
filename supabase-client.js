@@ -12,6 +12,18 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uQHaspzCH7YDrA7FXzudBQ_lPKGmWp8
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// Registers the service worker (enables "Add to Home Screen" / install
+// prompts and a basic offline shell). Safe to call on every page load —
+// the browser no-ops if it's already registered and unchanged.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {
+      // Installability just won't be offered if this fails (e.g. served
+      // over plain HTTP) — the rest of the site still works normally.
+    });
+  });
+}
+
 // Ensures a `profiles` row exists for the current user (first login after signup).
 // Safe to call repeatedly — no-ops if the row already exists.
 async function ensureProfile(user, displayName) {
