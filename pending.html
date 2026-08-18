@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Awaiting approval — Medicine</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <svg class="trace" viewBox="0 0 400 44" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="traceGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#0B8074" />
+          <stop offset="100%" stop-color="#6D5DD3" />
+        </linearGradient>
+      </defs>
+      <path d="M0,22 L110,22 L125,8 L140,36 L155,22 L400,22" />
+    </svg>
+
+    <div class="auth-body">
+      <div class="eyebrow">Medicine</div>
+      <h1>Awaiting approval</h1>
+      <p class="auth-sub" id="pendingSub">Checking your account status…</p>
+
+      <div id="pendingActions" style="display:none; text-align:center;">
+        <button type="button" class="btn btn-secondary" id="refreshBtn">Check again</button>
+        <div class="switch-mode">
+          <button type="button" id="signOutBtn">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="supabase-client.js?v=2"></script>
+<script>
+(async function init() {
+  const { data: { session } } = await db.auth.getSession();
+
+  if (!session) {
+    window.location.href = "auth.html";
+    return;
+  }
+
+  const sub = document.getElementById("pendingSub");
+  const actions = document.getElementById("pendingActions");
+
+  async function checkStatus() {
+    const { data: profile } = await db
+      .from("profiles")
+      .select("is_approved")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (profile && profile.is_approved === true) {
+      window.location.href = "index.html";
+      return;
+    }
+
+    sub.textContent = "Thanks for signing up. New accounts are reviewed and activated within 24 hours — you'll be able to sign in as soon as that's done. Feel free to check back, or just try signing in again a little later.";
+    actions.style.display = "block";
+  }
+
+  await checkStatus();
+
+  document.getElementById("refreshBtn").addEventListener("click", checkStatus);
+  document.getElementById("signOutBtn").addEventListener("click", async () => {
+    await db.auth.signOut();
+    window.location.href = "auth.html";
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -44,6 +44,16 @@
 
   wrap.innerHTML = `
     <div class="admin-section">
+      <h2>Pending approvals</h2>
+      <table class="admin-table" id="pendingTable">
+        <thead>
+          <tr><th>Name</th><th>Signed up</th><th></th></tr>
+        </thead>
+        <tbody><tr><td colspan="3">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="admin-section">
       <h2>Members</h2>
       <table class="admin-table" id="membersTable">
         <thead>
@@ -68,8 +78,72 @@
     </div>
   `;
 
+  await loadPending();
   await loadMembers();
   await loadSystems();
+
+  async function loadPending() {
+    const { data: pendingUsers, error } = await db
+      .from("profiles")
+      .select("id, display_name, created_at")
+      .eq("is_approved", false)
+      .order("created_at", { ascending: true });
+
+    const tbody = document.querySelector("#pendingTable tbody");
+
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="3">Couldn't load pending signups.</td></tr>`;
+      return;
+    }
+
+    if (!pendingUsers || pendingUsers.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3">No signups waiting on approval.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = pendingUsers.map(p => `
+      <tr>
+        <td>${escapeHtml(p.display_name)}</td>
+        <td>${p.created_at ? new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}</td>
+        <td>
+          <button class="admin-btn approve-btn" data-user-id="${p.id}">Approve</button>
+          <button class="admin-btn danger reject-btn" data-user-id="${p.id}">Reject</button>
+        </td>
+      </tr>
+    `).join("");
+
+    document.querySelectorAll(".approve-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const userId = btn.dataset.userId;
+        const { error: approveError } = await db
+          .from("profiles")
+          .update({ is_approved: true })
+          .eq("id", userId);
+        if (approveError) {
+          alert(approveError.message);
+          return;
+        }
+        await loadPending();
+        await loadMembers();
+      });
+    });
+
+    document.querySelectorAll(".reject-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Reject this signup? This removes their profile. If they try to sign in again, they'll show up here as a new pending request.")) return;
+        const userId = btn.dataset.userId;
+        const { error: rejectError } = await db
+          .from("profiles")
+          .delete()
+          .eq("id", userId);
+        if (rejectError) {
+          alert(rejectError.message);
+          return;
+        }
+        await loadPending();
+      });
+    });
+  }
 
   async function loadMembers() {
     const { data: members, error } = await db

@@ -41,6 +41,18 @@ async function requireAuth() {
     return null;
   }
   await ensureProfile(session.user);
+
+  const { data: profile } = await db
+    .from("profiles")
+    .select("is_approved")
+    .eq("id", session.user.id)
+    .maybeSingle();
+
+  if (profile && profile.is_approved === false) {
+    window.location.href = "pending.html";
+    return null;
+  }
+
   return session;
 }
 
@@ -57,9 +69,15 @@ async function renderNav(activePage) {
     await ensureProfile(session.user);
     const { data: profile } = await db
       .from("profiles")
-      .select("display_name, role")
+      .select("display_name, role, is_approved")
       .eq("id", session.user.id)
       .maybeSingle();
+
+    if (profile && profile.is_approved === false) {
+      window.location.href = "pending.html";
+      return;
+    }
+
     const name = profile ? profile.display_name : session.user.email;
     const isAdmin = profile && profile.role === "admin";
     userHtml = `

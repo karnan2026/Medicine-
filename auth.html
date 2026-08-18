@@ -136,7 +136,7 @@ form.addEventListener("submit", async (e) => {
       }
 
       if (!data.session) {
-        showMsg("Account created. Check your email to confirm, then sign in.", "ok");
+        showMsg("Account created. Check your email to confirm, then sign in — your account will be activated within 24 hours.", "ok");
         submitBtn.disabled = false;
         submitBtn.textContent = "Create account";
         return;
