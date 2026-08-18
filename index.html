@@ -33,7 +33,7 @@
     .select(`
       id, title, created_at,
       systems ( name ),
-      profiles ( display_name ),
+      profiles!topics_created_by_fkey ( display_name ),
       answers ( id, status )
     `)
     .eq("is_deleted", false)
