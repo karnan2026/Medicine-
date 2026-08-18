@@ -569,3 +569,99 @@ h1, h2, h3, .display {
 
 .review-controls button.mark-correct:hover { border-color: var(--teal); color: var(--teal); }
 .review-controls button.mark-wrong:hover { border-color: var(--clay); color: var(--clay); }
+
+/* ---- Admin panel ---- */
+
+.admin-section {
+  margin-bottom: 40px;
+}
+
+.admin-section h2 {
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.admin-table th {
+  text-align: left;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper-raised);
+}
+
+.admin-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 13.5px;
+}
+
+.admin-table tr:last-child td { border-bottom: none; }
+
+.role-select {
+  background: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  padding: 5px 8px;
+}
+
+.admin-btn {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--hairline);
+  background: none;
+  color: var(--text-dim);
+  margin-right: 6px;
+}
+
+.admin-btn:hover { border-color: var(--teal); color: var(--teal); }
+.admin-btn.danger:hover { border-color: var(--clay); color: var(--clay); }
+
+.badge-role {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--paper-raised);
+  color: var(--text-dim);
+}
+
+.badge-role.admin { color: var(--amber); }
+.badge-role.reviewer { color: var(--teal); }
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.inline-form input {
+  flex: 1;
+  background: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+}

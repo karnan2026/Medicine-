@@ -56,13 +56,15 @@ async function renderNav(activePage) {
     await ensureProfile(session.user);
     const { data: profile } = await db
       .from("profiles")
-      .select("display_name")
+      .select("display_name, role")
       .eq("id", session.user.id)
       .maybeSingle();
     const name = profile ? profile.display_name : session.user.email;
+    const isAdmin = profile && profile.role === "admin";
     userHtml = `
       <a href="new-topic.html" class="btn-new">+ New topic</a>
       <div class="nav-user">
+        ${isAdmin ? `<a href="admin.html" style="${activePage === 'admin' ? 'color:var(--teal);' : ''}">Admin</a>` : ''}
         <span>${name}</span>
         <button id="signOutBtn">Sign out</button>
       </div>`;

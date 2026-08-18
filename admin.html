@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Medicine</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav" id="nav"></nav>
+
+<div class="page" style="max-width:820px;">
+  <div class="page-header">
+    <h1>Admin</h1>
+  </div>
+
+  <div id="adminWrap">
+    <div class="loading">Checking access…</div>
+  </div>
+</div>
+
+<script src="supabase-client.js?v=2"></script>
+<script>
+(async function init() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  await renderNav("feed");
+
+  const wrap = document.getElementById("adminWrap");
+
+  const { data: myProfile } = await db
+    .from("profiles")
+    .select("role")
+    .eq("id", session.user.id)
+    .maybeSingle();
+
+  if (!myProfile || myProfile.role !== "admin") {
+    wrap.innerHTML = `<div class="empty-state">You don't have access to this page.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="admin-section">
+      <h2>Members</h2>
+      <table class="admin-table" id="membersTable">
+        <thead>
+          <tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody><tr><td colspan="4">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="admin-section">
+      <h2>Systems</h2>
+      <div class="inline-form">
+        <input type="text" id="newSystemName" placeholder="New system name, e.g. Nephrology">
+        <button class="btn btn-primary" id="addSystemBtn" style="width:auto;">Add</button>
+      </div>
+      <table class="admin-table" id="systemsTable">
+        <thead>
+          <tr><th>Name</th><th>Order</th><th></th></tr>
+        </thead>
+        <tbody><tr><td colspan="3">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  `;
+
+  await loadMembers();
+  await loadSystems();
+
+  async function loadMembers() {
+    const { data: members, error } = await db
+      .from("profiles")
+      .select("id, display_name, role, is_banned")
+      .order("display_name", { ascending: true });
+
+    const tbody = document.querySelector("#membersTable tbody");
+
+    if (error || !members) {
+      tbody.innerHTML = `<tr><td colspan="4">Couldn't load members.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = members.map(m => `
+      <tr>
+        <td>${escapeHtml(m.display_name)}</td>
+        <td>
+          <select class="role-select" data-user-id="${m.id}" ${m.id === session.user.id ? 'disabled title="You can\'t change your own role"' : ''}>
+            <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
+            <option value="reviewer" ${m.role === 'reviewer' ? 'selected' : ''}>Reviewer</option>
+            <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Admin</option>
+          </select>
+        </td>
+        <td>${m.is_banned ? '<span class="badge-role" style="color:var(--clay);">Banned</span>' : '<span class="badge-role">Active</span>'}</td>
+        <td>
+          ${m.id !== session.user.id ? `
+            <button class="admin-btn ban-btn danger" data-user-id="${m.id}" data-currently-banned="${m.is_banned}">
+              ${m.is_banned ? 'Unban' : 'Ban'}
+            </button>
+          ` : ''}
+        </td>
+      </tr>
+    `).join("");
+
+    document.querySelectorAll(".role-select").forEach(sel => {
+      sel.addEventListener("change", async () => {
+        const userId = sel.dataset.userId;
+        const newRole = sel.value;
+        const { error: updateError } = await db
+          .from("profiles")
+          .update({ role: newRole })
+          .eq("id", userId);
+        if (updateError) alert(updateError.message);
+      });
+    });
+
+    document.querySelectorAll(".ban-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const userId = btn.dataset.userId;
+        const currentlyBanned = btn.dataset.currentlyBanned === "true";
+        const { error: banError } = await db
+          .from("profiles")
+          .update({ is_banned: !currentlyBanned })
+          .eq("id", userId);
+        if (banError) {
+          alert(banError.message);
+          return;
+        }
+        await loadMembers();
+      });
+    });
+  }
+
+  async function loadSystems() {
+    const { data: systemsList, error } = await db
+      .from("systems")
+      .select("id, name, sort_order")
+      .order("sort_order", { ascending: true });
+
+    const tbody = document.querySelector("#systemsTable tbody");
+
+    if (error || !systemsList) {
+      tbody.innerHTML = `<tr><td colspan="3">Couldn't load systems.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = systemsList.map(s => `
+      <tr>
+        <td>${escapeHtml(s.name)}</td>
+        <td>${s.sort_order}</td>
+        <td><button class="admin-btn danger delete-system-btn" data-system-id="${s.id}">Remove</button></td>
+      </tr>
+    `).join("");
+
+    document.querySelectorAll(".delete-system-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Remove this system? Topics under it will remain but lose their category.")) return;
+        const { error: delError } = await db
+          .from("systems")
+          .delete()
+          .eq("id", btn.dataset.systemId);
+        if (delError) {
+          alert(delError.message);
+          return;
+        }
+        await loadSystems();
+      });
+    });
+  }
+
+  document.getElementById("addSystemBtn").addEventListener("click", async () => {
+    const input = document.getElementById("newSystemName");
+    const name = input.value.trim();
+    if (!name) return;
+
+    const slug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+    const { data: maxRow } = await db
+      .from("systems")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextOrder = maxRow ? maxRow.sort_order + 1 : 1;
+
+    const { error } = await db.from("systems").insert({ name, slug, sort_order: nextOrder });
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    input.value = "";
+    await loadSystems();
+  });
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+})();
+</script>
+
+</body>
+</html>
