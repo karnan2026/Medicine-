@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Medicine</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <svg class="trace" viewBox="0 0 400 44" preserveAspectRatio="none">
+      <path d="M0,22 L110,22 L125,8 L140,36 L155,22 L400,22" />
+    </svg>
+
+    <div class="auth-body">
+      <div class="eyebrow">Medicine</div>
+      <h1 id="formTitle">Sign in</h1>
+      <p class="auth-sub" id="formSub">Enter your credentials to continue.</p>
+
+      <div class="msg" id="msg"></div>
+
+      <form id="authForm">
+        <div class="field" id="nameField" style="display:none;">
+          <label for="displayName">Display name</label>
+          <input type="text" id="displayName" autocomplete="name" placeholder="How others will see you">
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" required placeholder="you@example.com">
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" required placeholder="••••••••">
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">Sign in</button>
+      </form>
+
+      <div class="switch-mode">
+        <span id="switchText">Don't have an account?</span>
+        <button type="button" id="switchBtn">Create one</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="supabase-client.js"></script>
+<script>
+let mode = "signin"; // or "signup"
+
+const form = document.getElementById("authForm");
+const msg = document.getElementById("msg");
+const submitBtn = document.getElementById("submitBtn");
+const nameField = document.getElementById("nameField");
+const formTitle = document.getElementById("formTitle");
+const formSub = document.getElementById("formSub");
+const switchText = document.getElementById("switchText");
+const switchBtn = document.getElementById("switchBtn");
+
+function showMsg(text, type) {
+  msg.textContent = text;
+  msg.className = "msg show " + type;
+}
+
+function clearMsg() {
+  msg.className = "msg";
+}
+
+switchBtn.addEventListener("click", () => {
+  mode = mode === "signin" ? "signup" : "signin";
+  clearMsg();
+  if (mode === "signup") {
+    formTitle.textContent = "Create account";
+    formSub.textContent = "Join to write and edit discussion topics.";
+    nameField.style.display = "block";
+    document.getElementById("displayName").required = true;
+    document.getElementById("password").autocomplete = "new-password";
+    submitBtn.textContent = "Create account";
+    switchText.textContent = "Already have an account?";
+    switchBtn.textContent = "Sign in";
+  } else {
+    formTitle.textContent = "Sign in";
+    formSub.textContent = "Enter your credentials to continue.";
+    nameField.style.display = "none";
+    document.getElementById("displayName").required = false;
+    document.getElementById("password").autocomplete = "current-password";
+    submitBtn.textContent = "Sign in";
+    switchText.textContent = "Don't have an account?";
+    switchBtn.textContent = "Create one";
+  }
+});
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  clearMsg();
+  submitBtn.disabled = true;
+  submitBtn.textContent = mode === "signup" ? "Creating…" : "Signing in…";
+
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const displayName = document.getElementById("displayName").value.trim();
+
+  try {
+    if (mode === "signup") {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+
+      if (data.user) {
+        await ensureProfile(data.user, displayName);
+      }
+
+      if (!data.session) {
+        showMsg("Account created. Check your email to confirm, then sign in.", "ok");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Create account";
+        return;
+      }
+
+      window.location.href = "index.html";
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      window.location.href = "index.html";
+    }
+  } catch (err) {
+    showMsg(err.message || "Something went wrong. Try again.", "error");
+    submitBtn.disabled = false;
+    submitBtn.textContent = mode === "signup" ? "Create account" : "Sign in";
+  }
+});
+
+// If already signed in, skip straight to the app.
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) window.location.href = "index.html";
+})();
+</script>
+
+</body>
+</html>

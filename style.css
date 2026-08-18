@@ -1,0 +1,196 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --ink: #121a1d;
+  --paper: #1a2327;
+  --paper-raised: #202b30;
+  --text: #e8ede7;
+  --text-dim: #93a3a1;
+  --hairline: #2e3a3d;
+  --teal: #4fb6ae;
+  --teal-dim: #2c4644;
+  --clay: #d46a54;
+  --clay-dim: #442d29;
+  --amber: #d4a854;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  background-image:
+    linear-gradient(var(--hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Source Serif 4', serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Auth page layout ---- */
+
+.auth-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Signature element: animated ECG trace across the top of the card */
+.trace {
+  width: 100%;
+  height: 44px;
+  display: block;
+  background: var(--paper-raised);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.trace path {
+  fill: none;
+  stroke: var(--teal);
+  stroke-width: 1.5;
+  stroke-dasharray: 340;
+  stroke-dashoffset: 340;
+  animation: draw 2.6s ease-in-out infinite;
+}
+
+@keyframes draw {
+  0%   { stroke-dashoffset: 340; }
+  55%  { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -340; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trace path { animation: none; stroke-dashoffset: 0; }
+}
+
+.auth-body {
+  padding: 32px 28px 28px;
+}
+
+.eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 6px;
+}
+
+.auth-body h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.auth-sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  background: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 11px 12px;
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 15px;
+}
+
+.field input:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+  border-color: var(--teal);
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 4px;
+  border: none;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--teal);
+  color: #0d1517;
+  margin-top: 4px;
+}
+
+.btn-primary:hover { background: #63c4bd; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.switch-mode {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.switch-mode button {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.msg {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  display: none;
+}
+
+.msg.show { display: block; }
+.msg.error { background: var(--clay-dim); color: #f0a390; border: 1px solid var(--clay); }
+.msg.ok { background: var(--teal-dim); color: #a8ded8; border: 1px solid var(--teal); }
