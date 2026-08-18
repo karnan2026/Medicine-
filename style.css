@@ -385,3 +385,46 @@ h1, h2, h3, .display {
   font-family: 'IBM Plex Mono', monospace;
   padding: 20px 0;
 }
+
+/* ---- System browse grid ---- */
+
+.system-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.system-card {
+  display: block;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  padding: 18px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.system-card:hover {
+  border-color: var(--teal);
+}
+
+.system-card .display {
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+
+.system-card .system-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.back-link {
+  display: inline-block;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.back-link:hover { color: var(--teal); }

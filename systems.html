@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browse by system — Medicine</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav" id="nav"></nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Browse by system</h1>
+  </div>
+
+  <div id="systemGrid">
+    <div class="loading">Loading systems…</div>
+  </div>
+</div>
+
+<script src="supabase-client.js?v=2"></script>
+<script>
+(async function init() {
+  await renderNav("systems");
+
+  const gridEl = document.getElementById("systemGrid");
+
+  const { data: systems, error } = await db
+    .from("systems")
+    .select("id, name, slug, topics ( id )")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    gridEl.innerHTML = `<div class="empty-state">Couldn't load systems: ${error.message}</div>`;
+    return;
+  }
+
+  if (!systems || systems.length === 0) {
+    gridEl.innerHTML = `<div class="empty-state">No systems have been set up yet.</div>`;
+    return;
+  }
+
+  gridEl.innerHTML = `
+    <div class="system-grid">
+      ${systems.map(sys => `
+        <a class="system-card" href="system.html?id=${sys.id}">
+          <div class="display">${escapeHtml(sys.name)}</div>
+          <div class="system-count">${sys.topics ? sys.topics.length : 0} topic${(sys.topics ? sys.topics.length : 0) === 1 ? '' : 's'}</div>
+        </a>
+      `).join("")}
+    </div>
+  `;
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+})();
+</script>
+
+</body>
+</html>
