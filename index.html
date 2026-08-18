@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Today's feed — Medicine</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav" id="nav"></nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Today's feed</h1>
+  </div>
+
+  <div id="feed">
+    <div class="loading">Loading topics…</div>
+  </div>
+</div>
+
+<script src="supabase-client.js?v=2"></script>
+<script>
+(async function init() {
+  await renderNav("feed");
+
+  const feedEl = document.getElementById("feed");
+
+  const { data: topics, error } = await db
+    .from("topics")
+    .select(`
+      id, title, created_at,
+      systems ( name ),
+      profiles ( display_name ),
+      answers ( id, status )
+    `)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    feedEl.innerHTML = `<div class="empty-state">Couldn't load topics: ${error.message}</div>`;
+    return;
+  }
+
+  if (!topics || topics.length === 0) {
+    feedEl.innerHTML = `<div class="empty-state">No topics yet. Be the first to start a discussion.</div>`;
+    return;
+  }
+
+  // Group topics by date label, preserving newest-first order.
+  const groups = [];
+  let currentLabel = null;
+  let currentList = null;
+
+  for (const topic of topics) {
+    const label = dateGroupLabel(topic.created_at);
+    if (label !== currentLabel) {
+      currentLabel = label;
+      currentList = [];
+      groups.push({ label, items: currentList });
+    }
+    currentList.push(topic);
+  }
+
+  feedEl.innerHTML = groups.map(group => `
+    <div class="date-group">
+      <div class="date-label">${group.label}</div>
+      ${group.items.map(topic => renderTopicCard(topic)).join("")}
+    </div>
+  `).join("");
+
+  function renderTopicCard(topic) {
+    const systemName = topic.systems ? topic.systems.name : "Uncategorized";
+    const author = topic.profiles ? topic.profiles.display_name : "Unknown";
+    const answerCount = topic.answers ? topic.answers.length : 0;
+    const verifiedCount = topic.answers
+      ? topic.answers.filter(a => a.status === "correct").length
+      : 0;
+
+    return `
+      <a class="topic-card" href="topic.html?id=${topic.id}">
+        <div class="topic-top">
+          <span class="tag">${escapeHtml(systemName)}</span>
+        </div>
+        <div class="topic-title">${escapeHtml(topic.title)}</div>
+        <div class="topic-meta">
+          <span>${escapeHtml(author)}</span>
+          <span>${timeLabel(topic.created_at)}</span>
+          <span class="answer-count ${verifiedCount > 0 ? 'has-verified' : ''}">
+            ${answerCount} answer${answerCount === 1 ? '' : 's'}${verifiedCount > 0 ? ' · verified' : ''}
+          </span>
+        </div>
+      </a>
+    `;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+})();
+</script>
+
+</body>
+</html>

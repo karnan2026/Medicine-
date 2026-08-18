@@ -39,3 +39,72 @@ async function requireAuth() {
   }
   return session;
 }
+
+// Renders the shared top nav into #nav. `activePage` is one of
+// "feed" | "systems" — used to highlight the current link.
+async function renderNav(activePage) {
+  const navEl = document.getElementById("nav");
+  if (!navEl) return;
+
+  const { data: { session } } = await db.auth.getSession();
+
+  let userHtml;
+  if (session) {
+    const { data: profile } = await db
+      .from("profiles")
+      .select("display_name")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    const name = profile ? profile.display_name : session.user.email;
+    userHtml = `
+      <a href="new-topic.html" class="btn-new">+ New topic</a>
+      <div class="nav-user">
+        <span>${name}</span>
+        <button id="signOutBtn">Sign out</button>
+      </div>`;
+  } else {
+    userHtml = `<div class="nav-user"><a href="auth.html">Sign in</a></div>`;
+  }
+
+  navEl.innerHTML = `
+    <div class="nav-brand">
+      <span class="eyebrow display" style="font-size:16px;">Medicine</span>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="${activePage === 'feed' ? 'active' : ''}">Today's feed</a>
+      <a href="systems.html" class="${activePage === 'systems' ? 'active' : ''}">Browse by system</a>
+    </div>
+    ${userHtml}
+  `;
+
+  const signOutBtn = document.getElementById("signOutBtn");
+  if (signOutBtn) {
+    signOutBtn.addEventListener("click", async () => {
+      await db.auth.signOut();
+      window.location.href = "index.html";
+    });
+  }
+}
+
+// Formats a timestamp into a friendly date-group label:
+// "Today", "Yesterday", or "12 Aug 2026".
+function dateGroupLabel(isoString) {
+  const d = new Date(isoString);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const sameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  if (sameDay(d, today)) return "Today";
+  if (sameDay(d, yesterday)) return "Yesterday";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// Formats a timestamp as a short time, e.g. "2:41 PM".
+function timeLabel(isoString) {
+  return new Date(isoString).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
