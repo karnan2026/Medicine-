@@ -128,7 +128,11 @@ form.addEventListener("submit", async (e) => {
 
   try {
     if (mode === "signup") {
-      const { data, error } = await db.auth.signUp({ email, password });
+      const { data, error } = await db.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: displayName } },
+      });
       if (error) throw error;
 
       if (data.user) {
