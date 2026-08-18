@@ -71,7 +71,7 @@
       .from("answers")
       .select(`
         id, body, status, created_at, reviewed_at,
-        profiles!answers_created_by_fkey ( display_name ),
+        author:profiles!answers_created_by_fkey ( display_name ),
         reviewer:profiles!answers_reviewed_by_fkey ( display_name )
       `)
       .eq("topic_id", topicId)
@@ -176,7 +176,7 @@
   }
 
   function renderAnswer(a) {
-    const authorProfile = a["profiles!answers_created_by_fkey"];
+    const authorProfile = a.author;
     const author = authorProfile ? authorProfile.display_name : "Unknown";
     const reviewerProfile = a.reviewer;
     const status = a.status || "unverified";
