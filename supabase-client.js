@@ -30,13 +30,16 @@ async function ensureProfile(user, displayName) {
 }
 
 // Redirects to auth.html if no one is logged in. Call at the top of
-// any page that requires a session.
+// any page that requires a session. Also ensures a `profiles` row
+// exists — a safety net in case signup ever completed without one
+// (e.g. email confirmation interrupting the original signup flow).
 async function requireAuth() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) {
     window.location.href = "auth.html";
     return null;
   }
+  await ensureProfile(session.user);
   return session;
 }
 
@@ -50,6 +53,7 @@ async function renderNav(activePage) {
 
   let userHtml;
   if (session) {
+    await ensureProfile(session.user);
     const { data: profile } = await db
       .from("profiles")
       .select("display_name")
