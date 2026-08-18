@@ -22,9 +22,10 @@ async function ensureProfile(user, displayName) {
     .maybeSingle();
 
   if (!existing) {
+    const googleName = user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name);
     await db.from("profiles").insert({
       id: user.id,
-      display_name: displayName || user.email.split("@")[0],
+      display_name: displayName || googleName || user.email.split("@")[0],
     });
   }
 }
