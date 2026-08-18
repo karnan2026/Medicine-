@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New topic — Medicine</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav" id="nav"></nav>
+
+<div class="page" style="max-width:640px;">
+  <a href="index.html" class="back-link">&larr; Today's feed</a>
+  <div class="page-header">
+    <h1>Start a new topic</h1>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="form-card">
+    <form id="topicForm">
+      <div class="field">
+        <label for="system">System</label>
+        <select id="system" required>
+          <option value="">Loading systems…</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="title">Title</label>
+        <input type="text" id="title" required placeholder="e.g. Mechanism of action of ACE inhibitors in heart failure">
+      </div>
+
+      <div class="field">
+        <label for="body">Details</label>
+        <textarea id="body" required placeholder="Describe the question or case in detail…"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary" id="submitBtn" style="width:auto;">Post topic</button>
+        <a href="index.html" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="supabase-client.js?v=2"></script>
+<script>
+(async function init() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  await renderNav("feed");
+
+  const systemSelect = document.getElementById("system");
+  const { data: systems, error: sysError } = await db
+    .from("systems")
+    .select("id, name")
+    .order("sort_order", { ascending: true });
+
+  if (sysError || !systems || systems.length === 0) {
+    systemSelect.innerHTML = `<option value="">No systems available</option>`;
+  } else {
+    systemSelect.innerHTML =
+      `<option value="">Choose a system…</option>` +
+      systems.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+  }
+
+  const form = document.getElementById("topicForm");
+  const msg = document.getElementById("msg");
+  const submitBtn = document.getElementById("submitBtn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.className = "msg";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Posting…";
+
+    const system_id = systemSelect.value;
+    const title = document.getElementById("title").value.trim();
+    const body = document.getElementById("body").value.trim();
+
+    if (!system_id || !title || !body) {
+      msg.className = "msg show error";
+      msg.textContent = "Please fill in every field.";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Post topic";
+      return;
+    }
+
+    const { data, error } = await db
+      .from("topics")
+      .insert({
+        system_id,
+        title,
+        body,
+        created_by: session.user.id,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      msg.className = "msg show error";
+      msg.textContent = error.message;
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Post topic";
+      return;
+    }
+
+    window.location.href = "topic.html?id=" + data.id;
+  });
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Topic — Medicine</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="nav" id="nav"></nav>
+
+<div class="page">
+  <a href="index.html" class="back-link">&larr; Today's feed</a>
+
+  <div id="topicWrap">
+    <div class="loading">Loading topic…</div>
+  </div>
+</div>
+
+<script src="supabase-client.js?v=2"></script>
+<script>
+(async function init() {
+  await renderNav("feed");
+
+  const params = new URLSearchParams(window.location.search);
+  const topicId = params.get("id");
+  const wrap = document.getElementById("topicWrap");
+
+  if (!topicId) {
+    wrap.innerHTML = `<div class="empty-state">No topic was specified.</div>`;
+    return;
+  }
+
+  const { data: { session } } = await db.auth.getSession();
+
+  let myRole = null;
+  if (session) {
+    const { data: myProfile } = await db
+      .from("profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    myRole = myProfile ? myProfile.role : "member";
+  }
+  const canReview = myRole === "reviewer" || myRole === "admin";
+
+  await loadTopic();
+
+  async function loadTopic() {
+    const { data: topic, error } = await db
+      .from("topics")
+      .select(`
+        id, title, body, created_at,
+        systems ( id, name ),
+        profiles!topics_created_by_fkey ( display_name )
+      `)
+      .eq("id", topicId)
+      .eq("is_deleted", false)
+      .maybeSingle();
+
+    if (error || !topic) {
+      wrap.innerHTML = `<div class="empty-state">This topic couldn't be found.</div>`;
+      return;
+    }
+
+    document.title = topic.title + " — Medicine";
+
+    const { data: answers, error: ansError } = await db
+      .from("answers")
+      .select(`
+        id, body, status, created_at, reviewed_at,
+        profiles!answers_created_by_fkey ( display_name ),
+        reviewer:profiles!answers_reviewed_by_fkey ( display_name )
+      `)
+      .eq("topic_id", topicId)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: true });
+
+    const author = topic.profiles ? topic.profiles.display_name : "Unknown";
+    const systemName = topic.systems ? topic.systems.name : "Uncategorized";
+
+    wrap.innerHTML = `
+      <div class="topic-header">
+        <div class="topic-top">
+          <a class="tag" href="system.html?id=${topic.systems ? topic.systems.id : ''}" style="text-decoration:none;">${escapeHtml(systemName)}</a>
+        </div>
+        <div class="topic-title">${escapeHtml(topic.title)}</div>
+        <div class="topic-meta">
+          <span>${escapeHtml(author)}</span>
+          <span>${dateGroupLabel(topic.created_at)}, ${timeLabel(topic.created_at)}</span>
+        </div>
+        <div class="topic-body">${escapeHtml(topic.body)}</div>
+      </div>
+
+      <div class="answers-heading">${answers ? answers.length : 0} Answer${answers && answers.length === 1 ? '' : 's'}</div>
+
+      <div id="answersList">
+        ${answers && answers.length > 0
+          ? answers.map(a => renderAnswer(a)).join("")
+          : `<div class="empty-state">No answers yet.</div>`}
+      </div>
+
+      <div class="form-card" style="margin-top:20px;">
+        ${session ? `
+          <form id="answerForm">
+            <div class="field">
+              <label for="answerBody">Your answer</label>
+              <textarea id="answerBody" required placeholder="Share your answer to this question…"></textarea>
+            </div>
+            <div class="msg" id="answerMsg"></div>
+            <button type="submit" class="btn btn-primary" id="answerSubmitBtn" style="width:auto;">Post answer</button>
+          </form>
+        ` : `
+          <p style="color:var(--text-dim); font-size:14px; margin:0;">
+            <a href="auth.html" style="color:var(--teal);">Sign in</a> to post an answer.
+          </p>
+        `}
+      </div>
+    `;
+
+    if (session) {
+      document.getElementById("answerForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const answerMsg = document.getElementById("answerMsg");
+        const btn = document.getElementById("answerSubmitBtn");
+        const body = document.getElementById("answerBody").value.trim();
+
+        if (!body) return;
+
+        btn.disabled = true;
+        btn.textContent = "Posting…";
+
+        const { error: insertError } = await db.from("answers").insert({
+          topic_id: topicId,
+          body,
+          created_by: session.user.id,
+        });
+
+        if (insertError) {
+          answerMsg.className = "msg show error";
+          answerMsg.textContent = insertError.message;
+          btn.disabled = false;
+          btn.textContent = "Post answer";
+          return;
+        }
+
+        await loadTopic();
+      });
+    }
+
+    if (canReview) {
+      document.querySelectorAll(".mark-correct, .mark-wrong").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const answerId = btn.dataset.answerId;
+          const verdict = btn.classList.contains("mark-correct") ? "correct" : "wrong";
+          btn.disabled = true;
+
+          const { error: reviewError } = await db.rpc("review_answer", {
+            p_answer_id: answerId,
+            p_verdict: verdict,
+            p_note: null,
+          });
+
+          if (reviewError) {
+            alert(reviewError.message);
+            btn.disabled = false;
+            return;
+          }
+
+          await loadTopic();
+        });
+      });
+    }
+  }
+
+  function renderAnswer(a) {
+    const authorProfile = a["profiles!answers_created_by_fkey"];
+    const author = authorProfile ? authorProfile.display_name : "Unknown";
+    const reviewerProfile = a.reviewer;
+    const status = a.status || "unverified";
+    const cardClass = status === "correct" ? "verdict-correct" : status === "wrong" ? "verdict-wrong" : "";
+
+    let reviewLine = "";
+    if (status !== "unverified" && reviewerProfile) {
+      reviewLine = `<div style="font-size:11.5px; color:var(--text-dim); margin-top:6px;">Reviewed by ${escapeHtml(reviewerProfile.display_name)}</div>`;
+    }
+
+    const reviewButtons = canReview ? `
+      <div class="review-controls">
+        <button class="mark-correct" data-answer-id="${a.id}">Mark correct</button>
+        <button class="mark-wrong" data-answer-id="${a.id}">Mark wrong</button>
+      </div>
+    ` : "";
+
+    return `
+      <div class="answer-card ${cardClass}">
+        <div class="answer-body">${escapeHtml(a.body)}</div>
+        <div class="answer-footer">
+          <div class="topic-meta">
+            <span>${escapeHtml(author)}</span>
+            <span>${timeLabel(a.created_at)}</span>
+            <span class="verdict-badge ${status}">${status}</span>
+          </div>
+          ${reviewButtons}
+        </div>
+        ${reviewLine}
+      </div>
+    `;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+})();
+</script>
+
+</body>
+</html>
