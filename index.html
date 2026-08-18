@@ -34,7 +34,7 @@
       id, title, created_at,
       systems ( name ),
       profiles!topics_created_by_fkey ( display_name ),
-      answers ( id, status )
+      answers ( id, status, is_deleted )
     `)
     .eq("is_deleted", false)
     .order("created_at", { ascending: false })
@@ -75,10 +75,9 @@
   function renderTopicCard(topic) {
     const systemName = topic.systems ? topic.systems.name : "Uncategorized";
     const author = topic.profiles ? topic.profiles.display_name : "Unknown";
-    const answerCount = topic.answers ? topic.answers.length : 0;
-    const verifiedCount = topic.answers
-      ? topic.answers.filter(a => a.status === "correct").length
-      : 0;
+    const liveAnswers = topic.answers ? topic.answers.filter(a => !a.is_deleted) : [];
+    const answerCount = liveAnswers.length;
+    const verifiedCount = liveAnswers.filter(a => a.status === "correct").length;
 
     return `
       <a class="topic-card" href="topic.html?id=${topic.id}">

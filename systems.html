@@ -30,7 +30,7 @@
 
   const { data: systems, error } = await db
     .from("systems")
-    .select("id, name, slug, topics ( id )")
+    .select("id, name, slug, topics ( id, is_deleted )")
     .order("sort_order", { ascending: true });
 
   if (error) {
@@ -45,12 +45,15 @@
 
   gridEl.innerHTML = `
     <div class="system-grid">
-      ${systems.map(sys => `
+      ${systems.map(sys => {
+        const liveCount = sys.topics ? sys.topics.filter(t => !t.is_deleted).length : 0;
+        return `
         <a class="system-card" href="system.html?id=${sys.id}">
           <div class="display">${escapeHtml(sys.name)}</div>
-          <div class="system-count">${sys.topics ? sys.topics.length : 0} topic${(sys.topics ? sys.topics.length : 0) === 1 ? '' : 's'}</div>
+          <div class="system-count">${liveCount} topic${liveCount === 1 ? '' : 's'}</div>
         </a>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
   `;
 
