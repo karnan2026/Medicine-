@@ -12,6 +12,45 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uQHaspzCH7YDrA7FXzudBQ_lPKGmWp8
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// Uploads one image to the topic-images bucket, then records it in the
+// given table (topic_images or answer_images). Uploading is really two
+// separate network calls — the file upload, then the database row that
+// points to it — and either can fail independently, especially on a
+// slow or unstable connection. Retries each step once before giving up,
+// and returns false (rather than silently succeeding) if the row never
+// got recorded, even if the file itself made it to storage.
+async function uploadPostImage(file, userId, table, foreignKeyColumn, foreignKeyValue, sortOrder) {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${userId}/${Date.now()}-${sortOrder}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  async function attemptUpload() {
+    const { error } = await db.storage
+      .from("topic-images")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    return !error;
+  }
+
+  let uploaded = await attemptUpload();
+  if (!uploaded) uploaded = await attemptUpload();
+  if (!uploaded) return false;
+
+  const { data: publicUrlData } = db.storage.from("topic-images").getPublicUrl(path);
+
+  async function attemptInsert() {
+    const { error } = await db.from(table).insert({
+      [foreignKeyColumn]: foreignKeyValue,
+      image_url: publicUrlData.publicUrl,
+      sort_order: sortOrder,
+    });
+    return !error;
+  }
+
+  let inserted = await attemptInsert();
+  if (!inserted) inserted = await attemptInsert();
+
+  return inserted;
+}
+
 // Registers the service worker (enables "Add to Home Screen" / install
 // prompts and a basic offline shell). Safe to call on every page load —
 // the browser no-ops if it's already registered and unchanged.

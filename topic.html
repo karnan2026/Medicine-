@@ -257,25 +257,8 @@
           let failedCount = 0;
 
           for (let i = 0; i < selectedAnswerFiles.length; i++) {
-            const file = selectedAnswerFiles[i];
-            const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-            const path = `${session.user.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-            const { error: uploadError } = await db.storage
-              .from("topic-images")
-              .upload(path, file, { cacheControl: "3600", upsert: false });
-
-            if (uploadError) {
-              failedCount++;
-              continue;
-            }
-
-            const { data: publicUrlData } = db.storage.from("topic-images").getPublicUrl(path);
-            await db.from("answer_images").insert({
-              answer_id: newAnswer.id,
-              image_url: publicUrlData.publicUrl,
-              sort_order: i,
-            });
+            const ok = await uploadPostImage(selectedAnswerFiles[i], session.user.id, "answer_images", "answer_id", newAnswer.id, i);
+            if (!ok) failedCount++;
           }
 
           if (failedCount > 0) {
