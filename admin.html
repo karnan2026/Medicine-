@@ -57,6 +57,16 @@
     </div>
 
     <div class="admin-section">
+      <h2>Scheduled topics</h2>
+      <table class="admin-table" id="scheduledTable">
+        <thead>
+          <tr><th>Title</th><th>Publishes</th><th></th></tr>
+        </thead>
+        <tbody><tr><td colspan="3">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="admin-section">
       <h2>Members</h2>
       <table class="admin-table" id="membersTable">
         <thead>
@@ -82,8 +92,55 @@
   `;
 
   await loadPending();
+  await loadScheduled();
   await loadMembers();
   await loadSystems();
+
+  async function loadScheduled() {
+    const { data: scheduledTopics, error } = await db
+      .from("topics")
+      .select("id, title, publish_at")
+      .gt("publish_at", new Date().toISOString())
+      .eq("is_deleted", false)
+      .order("publish_at", { ascending: true });
+
+    const tbody = document.querySelector("#scheduledTable tbody");
+
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="3">Couldn't load scheduled topics.</td></tr>`;
+      return;
+    }
+
+    if (!scheduledTopics || scheduledTopics.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3">Nothing scheduled right now.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = scheduledTopics.map(t => `
+      <tr>
+        <td><a href="topic.html?id=${t.id}">${escapeHtml(t.title)}</a></td>
+        <td>${new Date(t.publish_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}</td>
+        <td><button class="admin-btn publish-now-btn" data-topic-id="${t.id}">Publish now</button></td>
+      </tr>
+    `).join("");
+
+    document.querySelectorAll(".publish-now-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const topicId = btn.dataset.topicId;
+        btn.disabled = true;
+        const { error: updateError } = await db
+          .from("topics")
+          .update({ publish_at: new Date().toISOString() })
+          .eq("id", topicId);
+        if (updateError) {
+          alert(updateError.message);
+          btn.disabled = false;
+          return;
+        }
+        await loadScheduled();
+      });
+    });
+  }
 
   async function loadPending() {
     updateAdminBadge(true);
