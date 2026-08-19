@@ -47,7 +47,7 @@
         <div id="imagePreviewGrid" class="image-preview-grid"></div>
       </div>
 
-      <div class="field">
+      <div class="field" id="scheduleFieldOuter" style="display:none;">
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
           <input type="checkbox" id="scheduleToggle" style="width:auto;">
           <span>Schedule for later instead of posting now</span>
@@ -72,6 +72,16 @@
   if (!session) return;
 
   await renderNav("feed");
+
+  const { data: myProfile } = await db
+    .from("profiles")
+    .select("role")
+    .eq("id", session.user.id)
+    .maybeSingle();
+  const isAdmin = myProfile && myProfile.role === "admin";
+  if (isAdmin) {
+    document.getElementById("scheduleFieldOuter").style.display = "block";
+  }
 
   const systemSelect = document.getElementById("system");
   const { data: systems, error: sysError } = await db
