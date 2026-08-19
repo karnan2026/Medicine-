@@ -48,6 +48,8 @@
     myRole = myProfile ? myProfile.role : "member";
   }
   const canReview = myRole === "reviewer" || myRole === "admin";
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB per file
+  const MAX_IMAGES = 5;
 
   await loadTopic();
 
@@ -55,7 +57,7 @@
     const { data: topic, error } = await db
       .from("topics")
       .select(`
-        id, title, body, image_url, created_at, created_by,
+        id, title, body, created_at, created_by,
         systems ( id, name ),
         profiles!topics_created_by_fkey ( display_name )
       `)
@@ -68,6 +70,12 @@
       return;
     }
 
+    const { data: topicImages } = await db
+      .from("topic_images")
+      .select("image_url")
+      .eq("topic_id", topicId)
+      .order("sort_order", { ascending: true });
+
     document.title = topic.title + " — Medicine";
 
     const isAdmin = myRole === "admin";
@@ -78,7 +86,8 @@
       .select(`
         id, body, status, created_at, reviewed_at, created_by,
         author:profiles!answers_created_by_fkey ( display_name ),
-        reviewer:profiles!answers_reviewed_by_fkey ( display_name )
+        reviewer:profiles!answers_reviewed_by_fkey ( display_name ),
+        answer_images ( image_url, sort_order )
       `)
       .eq("topic_id", topicId)
       .eq("is_deleted", false)
@@ -98,10 +107,14 @@
           <span>${dateGroupLabel(topic.created_at)}, ${timeLabel(topic.created_at)}</span>
         </div>
         <div class="topic-body">${escapeHtml(topic.body)}</div>
-        ${topic.image_url ? `
-          <a href="${topic.image_url}" target="_blank" rel="noopener">
-            <img src="${topic.image_url}" alt="" class="topic-image">
-          </a>
+        ${topicImages && topicImages.length > 0 ? `
+          <div class="image-gallery">
+            ${topicImages.map(img => `
+              <a href="${img.image_url}" target="_blank" rel="noopener" class="image-gallery-item">
+                <img src="${img.image_url}" alt="">
+              </a>
+            `).join("")}
+          </div>
         ` : ""}
         ${canEditTopic ? `
           <div style="margin-top:12px;">
@@ -125,6 +138,11 @@
             <div class="field">
               <label for="answerBody">Your answer</label>
               <textarea id="answerBody" required placeholder="Share your answer to this question…"></textarea>
+            </div>
+            <div class="field">
+              <label for="answerImage">Photos (optional, up to ${MAX_IMAGES})</label>
+              <input type="file" id="answerImage" accept="image/*" multiple>
+              <div id="answerImagePreviewGrid" class="image-preview-grid"></div>
             </div>
             <div class="msg" id="answerMsg"></div>
             <button type="submit" class="btn btn-primary" id="answerSubmitBtn" style="width:auto;">Post answer</button>
@@ -156,6 +174,53 @@
     }
 
     if (session) {
+      const answerImageInput = document.getElementById("answerImage");
+      const answerImagePreviewGrid = document.getElementById("answerImagePreviewGrid");
+      let selectedAnswerFiles = [];
+
+      function renderAnswerPreviews() {
+        answerImagePreviewGrid.innerHTML = selectedAnswerFiles.map((file, i) => `
+          <div class="image-preview-item">
+            <img src="${URL.createObjectURL(file)}" alt="">
+            <button type="button" class="image-preview-remove" data-index="${i}" aria-label="Remove">&times;</button>
+          </div>
+        `).join("");
+
+        answerImagePreviewGrid.querySelectorAll(".image-preview-remove").forEach(btn => {
+          btn.addEventListener("click", () => {
+            selectedAnswerFiles.splice(Number(btn.dataset.index), 1);
+            renderAnswerPreviews();
+          });
+        });
+      }
+
+      answerImageInput.addEventListener("change", () => {
+        const answerMsg = document.getElementById("answerMsg");
+        answerMsg.className = "msg";
+        const newFiles = Array.from(answerImageInput.files || []);
+        answerImageInput.value = "";
+
+        for (const file of newFiles) {
+          if (selectedAnswerFiles.length >= MAX_IMAGES) {
+            answerMsg.className = "msg show error";
+            answerMsg.textContent = `You can attach up to ${MAX_IMAGES} photos.`;
+            break;
+          }
+          if (!file.type.startsWith("image/")) {
+            answerMsg.className = "msg show error";
+            answerMsg.textContent = "Please choose image files only.";
+            continue;
+          }
+          if (file.size > MAX_IMAGE_BYTES) {
+            answerMsg.className = "msg show error";
+            answerMsg.textContent = `"${file.name}" is over 5 MB — please choose a smaller image.`;
+            continue;
+          }
+          selectedAnswerFiles.push(file);
+        }
+        renderAnswerPreviews();
+      });
+
       document.getElementById("answerForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const answerMsg = document.getElementById("answerMsg");
@@ -167,11 +232,11 @@
         btn.disabled = true;
         btn.textContent = "Posting…";
 
-        const { error: insertError } = await db.from("answers").insert({
-          topic_id: topicId,
-          body,
-          created_by: session.user.id,
-        });
+        const { data: newAnswer, error: insertError } = await db
+          .from("answers")
+          .insert({ topic_id: topicId, body, created_by: session.user.id })
+          .select("id")
+          .single();
 
         if (insertError) {
           answerMsg.className = "msg show error";
@@ -179,6 +244,37 @@
           btn.disabled = false;
           btn.textContent = "Post answer";
           return;
+        }
+
+        if (selectedAnswerFiles.length > 0) {
+          btn.textContent = "Uploading photos…";
+          let failedCount = 0;
+
+          for (let i = 0; i < selectedAnswerFiles.length; i++) {
+            const file = selectedAnswerFiles[i];
+            const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+            const path = `${session.user.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+            const { error: uploadError } = await db.storage
+              .from("topic-images")
+              .upload(path, file, { cacheControl: "3600", upsert: false });
+
+            if (uploadError) {
+              failedCount++;
+              continue;
+            }
+
+            const { data: publicUrlData } = db.storage.from("topic-images").getPublicUrl(path);
+            await db.from("answer_images").insert({
+              answer_id: newAnswer.id,
+              image_url: publicUrlData.publicUrl,
+              sort_order: i,
+            });
+          }
+
+          if (failedCount > 0) {
+            alert(`Answer posted, but ${failedCount} photo(s) failed to upload.`);
+          }
         }
 
         await loadTopic();
@@ -340,9 +436,21 @@
       </div>
     ` : "";
 
+    const images = (a.answer_images || []).slice().sort((x, y) => (x.sort_order || 0) - (y.sort_order || 0));
+    const imagesHtml = images.length > 0 ? `
+      <div class="image-gallery">
+        ${images.map(img => `
+          <a href="${img.image_url}" target="_blank" rel="noopener" class="image-gallery-item">
+            <img src="${img.image_url}" alt="">
+          </a>
+        `).join("")}
+      </div>
+    ` : "";
+
     return `
       <div class="answer-card ${cardClass}" id="answer-${a.id}">
         <div class="answer-body">${escapeHtml(a.body)}</div>
+        ${imagesHtml}
         <div class="answer-footer">
           <div class="topic-meta">
             <span>${escapeHtml(author)}</span>

@@ -42,12 +42,9 @@
       </div>
 
       <div class="field">
-        <label for="image">Photo (optional)</label>
-        <input type="file" id="image" accept="image/*">
-        <div id="imagePreviewWrap" style="display:none; margin-top:10px;">
-          <img id="imagePreview" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid var(--hairline); display:block;">
-          <button type="button" id="removeImageBtn" class="admin-btn danger" style="margin-top:8px;">Remove photo</button>
-        </div>
+        <label for="image">Photos (optional, up to 5)</label>
+        <input type="file" id="image" accept="image/*" multiple>
+        <div id="imagePreviewGrid" class="image-preview-grid"></div>
       </div>
 
       <div class="btn-row">
@@ -84,40 +81,52 @@
   const msg = document.getElementById("msg");
   const submitBtn = document.getElementById("submitBtn");
   const imageInput = document.getElementById("image");
-  const imagePreviewWrap = document.getElementById("imagePreviewWrap");
-  const imagePreview = document.getElementById("imagePreview");
-  const removeImageBtn = document.getElementById("removeImageBtn");
+  const imagePreviewGrid = document.getElementById("imagePreviewGrid");
 
-  const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+  const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB per file
+  const MAX_IMAGES = 5;
+  let selectedFiles = [];
+
+  function renderPreviews() {
+    imagePreviewGrid.innerHTML = selectedFiles.map((file, i) => `
+      <div class="image-preview-item">
+        <img src="${URL.createObjectURL(file)}" alt="">
+        <button type="button" class="image-preview-remove" data-index="${i}" aria-label="Remove">&times;</button>
+      </div>
+    `).join("");
+
+    imagePreviewGrid.querySelectorAll(".image-preview-remove").forEach(btn => {
+      btn.addEventListener("click", () => {
+        selectedFiles.splice(Number(btn.dataset.index), 1);
+        renderPreviews();
+      });
+    });
+  }
 
   imageInput.addEventListener("change", () => {
-    const file = imageInput.files[0];
     msg.className = "msg";
-    if (!file) {
-      imagePreviewWrap.style.display = "none";
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      msg.className = "msg show error";
-      msg.textContent = "Please choose an image file.";
-      imageInput.value = "";
-      imagePreviewWrap.style.display = "none";
-      return;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      msg.className = "msg show error";
-      msg.textContent = "That image is over 5 MB — please choose a smaller one.";
-      imageInput.value = "";
-      imagePreviewWrap.style.display = "none";
-      return;
-    }
-    imagePreview.src = URL.createObjectURL(file);
-    imagePreviewWrap.style.display = "block";
-  });
+    const newFiles = Array.from(imageInput.files || []);
+    imageInput.value = ""; // reset so picking the same file again still fires "change"
 
-  removeImageBtn.addEventListener("click", () => {
-    imageInput.value = "";
-    imagePreviewWrap.style.display = "none";
+    for (const file of newFiles) {
+      if (selectedFiles.length >= MAX_IMAGES) {
+        msg.className = "msg show error";
+        msg.textContent = `You can attach up to ${MAX_IMAGES} photos.`;
+        break;
+      }
+      if (!file.type.startsWith("image/")) {
+        msg.className = "msg show error";
+        msg.textContent = "Please choose image files only.";
+        continue;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        msg.className = "msg show error";
+        msg.textContent = `"${file.name}" is over 5 MB — please choose a smaller image.`;
+        continue;
+      }
+      selectedFiles.push(file);
+    }
+    renderPreviews();
   });
 
   form.addEventListener("submit", async (e) => {
@@ -129,7 +138,6 @@
     const system_id = systemSelect.value;
     const title = document.getElementById("title").value.trim();
     const body = document.getElementById("body").value.trim();
-    const imageFile = imageInput.files[0] || null;
 
     if (!system_id || !title || !body) {
       msg.className = "msg show error";
@@ -139,39 +147,9 @@
       return;
     }
 
-    let image_url = null;
-
-    if (imageFile) {
-      submitBtn.textContent = "Uploading photo…";
-      const ext = (imageFile.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-      const { error: uploadError } = await db.storage
-        .from("topic-images")
-        .upload(path, imageFile, { cacheControl: "3600", upsert: false });
-
-      if (uploadError) {
-        msg.className = "msg show error";
-        msg.textContent = "Couldn't upload the photo: " + uploadError.message + ". You can try again, or post without it.";
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Post topic";
-        return;
-      }
-
-      const { data: publicUrlData } = db.storage.from("topic-images").getPublicUrl(path);
-      image_url = publicUrlData ? publicUrlData.publicUrl : null;
-      submitBtn.textContent = "Posting…";
-    }
-
     const { data, error } = await db
       .from("topics")
-      .insert({
-        system_id,
-        title,
-        body,
-        image_url,
-        created_by: session.user.id,
-      })
+      .insert({ system_id, title, body, created_by: session.user.id })
       .select("id")
       .single();
 
@@ -183,7 +161,42 @@
       return;
     }
 
-    window.location.href = "topic.html?id=" + data.id;
+    const topicId = data.id;
+
+    if (selectedFiles.length > 0) {
+      submitBtn.textContent = "Uploading photos…";
+      let failedCount = 0;
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        const path = `${session.user.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        const { error: uploadError } = await db.storage
+          .from("topic-images")
+          .upload(path, file, { cacheControl: "3600", upsert: false });
+
+        if (uploadError) {
+          failedCount++;
+          continue;
+        }
+
+        const { data: publicUrlData } = db.storage.from("topic-images").getPublicUrl(path);
+        await db.from("topic_images").insert({
+          topic_id: topicId,
+          image_url: publicUrlData.publicUrl,
+          sort_order: i,
+        });
+      }
+
+      if (failedCount > 0) {
+        // The topic itself already posted successfully — just let the
+        // person know some photos didn't make it, without blocking them.
+        alert(`Topic posted, but ${failedCount} photo(s) failed to upload. You can view the topic and it will show the ones that succeeded.`);
+      }
+    }
+
+    window.location.href = "topic.html?id=" + topicId;
   });
 
   function escapeHtml(str) {
