@@ -55,7 +55,7 @@
     const { data: topic, error } = await db
       .from("topics")
       .select(`
-        id, title, body, created_at, created_by,
+        id, title, body, image_url, created_at, created_by,
         systems ( id, name ),
         profiles!topics_created_by_fkey ( display_name )
       `)
@@ -98,6 +98,11 @@
           <span>${dateGroupLabel(topic.created_at)}, ${timeLabel(topic.created_at)}</span>
         </div>
         <div class="topic-body">${escapeHtml(topic.body)}</div>
+        ${topic.image_url ? `
+          <a href="${topic.image_url}" target="_blank" rel="noopener">
+            <img src="${topic.image_url}" alt="" class="topic-image">
+          </a>
+        ` : ""}
         ${canEditTopic ? `
           <div style="margin-top:12px;">
             <button class="admin-btn" id="editTopicBtn">Edit</button>
