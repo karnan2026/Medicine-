@@ -86,6 +86,8 @@
   await loadSystems();
 
   async function loadPending() {
+    updateAdminBadge(true);
+
     const { data: pendingUsers, error } = await db
       .from("profiles")
       .select("id, display_name, created_at")

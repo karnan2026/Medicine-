@@ -68,6 +68,30 @@ async function requireAuth() {
   return session;
 }
 
+// Sets/clears the installed app's icon badge to the count of signups
+// awaiting approval. Only meaningful for admins — everyone else gets
+// it cleared. Note: this only runs while the app is actually open;
+// browsers can't update a badge in the background without a push
+// server, so it reflects the count "as of your last visit," not a
+// live push like the Telegram alerts.
+async function updateAdminBadge(isAdmin) {
+  if (!("setAppBadge" in navigator)) return;
+  if (!isAdmin) {
+    navigator.clearAppBadge().catch(() => {});
+    return;
+  }
+  const { count } = await db
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("is_approved", false);
+
+  if (count && count > 0) {
+    navigator.setAppBadge(count).catch(() => {});
+  } else {
+    navigator.clearAppBadge().catch(() => {});
+  }
+}
+
 // Renders the shared top nav into #nav. `activePage` is one of
 // "feed" | "systems" — used to highlight the current link.
 async function renderNav(activePage) {
@@ -92,6 +116,7 @@ async function renderNav(activePage) {
 
     const name = profile ? profile.display_name : session.user.email;
     const isAdmin = profile && profile.role === "admin";
+    updateAdminBadge(isAdmin);
     userHtml = `
       <a href="new-topic.html" class="btn-new">+ New topic</a>
       <div class="nav-user">
@@ -100,6 +125,7 @@ async function renderNav(activePage) {
         <button id="signOutBtn">Sign out</button>
       </div>`;
   } else {
+    updateAdminBadge(false);
     userHtml = `<div class="nav-user"><a href="auth.html">Sign in</a></div>`;
   }
 
