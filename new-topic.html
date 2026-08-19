@@ -47,6 +47,16 @@
         <div id="imagePreviewGrid" class="image-preview-grid"></div>
       </div>
 
+      <div class="field">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="scheduleToggle" style="width:auto;">
+          <span>Schedule for later instead of posting now</span>
+        </label>
+        <div id="scheduleFieldWrap" style="display:none; margin-top:10px;">
+          <input type="datetime-local" id="scheduleAt">
+        </div>
+      </div>
+
       <div class="btn-row">
         <button type="submit" class="btn btn-primary" id="submitBtn" style="width:auto;">Post topic</button>
         <a href="index.html" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center;">Cancel</a>
@@ -86,6 +96,15 @@
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB per file
   const MAX_IMAGES = 5;
   let selectedFiles = [];
+
+  const scheduleToggle = document.getElementById("scheduleToggle");
+  const scheduleFieldWrap = document.getElementById("scheduleFieldWrap");
+  const scheduleAt = document.getElementById("scheduleAt");
+
+  scheduleToggle.addEventListener("change", () => {
+    scheduleFieldWrap.style.display = scheduleToggle.checked ? "block" : "none";
+    if (!scheduleToggle.checked) scheduleAt.value = "";
+  });
 
   function renderPreviews() {
     imagePreviewGrid.innerHTML = selectedFiles.map((file, i) => `
@@ -147,9 +166,32 @@
       return;
     }
 
+    let publish_at = null;
+    if (scheduleToggle.checked) {
+      if (!scheduleAt.value) {
+        msg.className = "msg show error";
+        msg.textContent = "Pick a date and time to schedule for, or uncheck scheduling to post now.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Post topic";
+        return;
+      }
+      const chosen = new Date(scheduleAt.value);
+      if (chosen.getTime() <= Date.now()) {
+        msg.className = "msg show error";
+        msg.textContent = "Scheduled time must be in the future.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Post topic";
+        return;
+      }
+      publish_at = chosen.toISOString();
+    }
+
+    const insertPayload = { system_id, title, body, created_by: session.user.id };
+    if (publish_at) insertPayload.publish_at = publish_at;
+
     const { data, error } = await db
       .from("topics")
-      .insert({ system_id, title, body, created_by: session.user.id })
+      .insert(insertPayload)
       .select("id")
       .single();
 

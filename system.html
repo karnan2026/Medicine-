@@ -65,6 +65,7 @@
     `)
     .eq("system_id", systemId)
     .eq("is_deleted", false)
+    .lte("publish_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(200);
 

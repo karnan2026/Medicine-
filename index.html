@@ -40,6 +40,7 @@
       answers ( id, status, is_deleted )
     `)
     .eq("is_deleted", false)
+    .lte("publish_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(100);
 

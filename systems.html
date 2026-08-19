@@ -33,7 +33,7 @@
 
   const { data: systems, error } = await db
     .from("systems")
-    .select("id, name, slug, topics ( id, is_deleted )")
+    .select("id, name, slug, topics ( id, is_deleted, publish_at )")
     .order("sort_order", { ascending: true });
 
   if (error) {
@@ -49,7 +49,8 @@
   gridEl.innerHTML = `
     <div class="system-grid">
       ${systems.map(sys => {
-        const liveCount = sys.topics ? sys.topics.filter(t => !t.is_deleted).length : 0;
+        const now = new Date().toISOString();
+        const liveCount = sys.topics ? sys.topics.filter(t => !t.is_deleted && t.publish_at <= now).length : 0;
         return `
         <a class="system-card" href="system.html?id=${sys.id}">
           <div class="display">${escapeHtml(sys.name)}</div>

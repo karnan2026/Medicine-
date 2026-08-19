@@ -57,7 +57,7 @@
     const { data: topic, error } = await db
       .from("topics")
       .select(`
-        id, title, body, created_at, created_by,
+        id, title, body, created_at, created_by, publish_at,
         systems ( id, name ),
         profiles!topics_created_by_fkey ( display_name )
       `)
@@ -95,8 +95,14 @@
 
     const author = topic.profiles ? topic.profiles.display_name : "Unknown";
     const systemName = topic.systems ? topic.systems.name : "Uncategorized";
+    const isScheduledFuture = topic.publish_at && new Date(topic.publish_at).getTime() > Date.now();
 
     wrap.innerHTML = `
+      ${isScheduledFuture ? `
+        <div class="msg show ok" style="display:block;">
+          This topic is scheduled to publish on ${new Date(topic.publish_at).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}. Only you (and admins) can see it until then.
+        </div>
+      ` : ""}
       <div class="topic-header" id="topicHeader">
         <div class="topic-top">
           <a class="tag" href="system.html?id=${topic.systems ? topic.systems.id : ''}" style="text-decoration:none;">${escapeHtml(systemName)}</a>
