@@ -3,7 +3,7 @@
 // this only caches the static files that make up the app's shell,
 // so bump CACHE_NAME whenever any cached file changes, or returning
 // visitors will keep seeing the old cached version.
-const CACHE_NAME = "medicine-shell-v7";
+const CACHE_NAME = "medicine-shell-v8";
 const SHELL_FILES = [
   "style.css",
   "supabase-client.js?v=2",

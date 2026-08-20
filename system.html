@@ -59,14 +59,14 @@
   const { data: topics, error } = await db
     .from("topics")
     .select(`
-      id, title, created_at,
+      id, title, created_at, publish_at,
       profiles!topics_created_by_fkey ( display_name ),
       answers ( id, status, is_deleted )
     `)
     .eq("system_id", systemId)
     .eq("is_deleted", false)
     .lte("publish_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
+    .order("publish_at", { ascending: false })
     .limit(200);
 
   if (error) {
@@ -84,7 +84,7 @@
   let currentList = null;
 
   for (const topic of topics) {
-    const label = dateGroupLabel(topic.created_at);
+    const label = dateGroupLabel(topic.publish_at);
     if (label !== currentLabel) {
       currentLabel = label;
       currentList = [];
@@ -111,7 +111,7 @@
         <div class="topic-title">${escapeHtml(topic.title)}</div>
         <div class="topic-meta">
           <span>${escapeHtml(author)}</span>
-          <span>${timeLabel(topic.created_at)}</span>
+          <span>${timeLabel(topic.publish_at)}</span>
           <span class="answer-count ${verifiedCount > 0 ? 'has-verified' : ''}">
             ${answerCount} answer${answerCount === 1 ? '' : 's'}${verifiedCount > 0 ? ' · verified' : ''}
           </span>

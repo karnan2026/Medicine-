@@ -110,7 +110,7 @@
         <div class="topic-title">${escapeHtml(topic.title)}</div>
         <div class="topic-meta">
           <span>${escapeHtml(author)}</span>
-          <span>${dateGroupLabel(topic.created_at)}, ${timeLabel(topic.created_at)}</span>
+          <span>${dateGroupLabel(topic.publish_at)}, ${timeLabel(topic.publish_at)}</span>
         </div>
         <div class="topic-body">${escapeHtml(topic.body)}</div>
         ${topicImages && topicImages.length > 0 ? `
