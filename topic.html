@@ -113,15 +113,23 @@
           <span>${dateGroupLabel(topic.publish_at)}, ${timeLabel(topic.publish_at)}</span>
         </div>
         <div class="topic-body">${escapeHtml(topic.body)}</div>
-        ${topicImages && topicImages.length > 0 ? `
-          <div class="image-gallery">
-            ${topicImages.map(img => `
-              <a href="${img.image_url}" target="_blank" rel="noopener" class="image-gallery-item">
-                <img src="${img.image_url}" alt="">
+        ${topicImages && topicImages.length > 0 ? (
+          topicImages.length === 1
+            ? `
+              <a href="${topicImages[0].image_url}" target="_blank" rel="noopener">
+                <img src="${topicImages[0].image_url}" alt="" class="topic-image-single">
               </a>
-            `).join("")}
-          </div>
-        ` : ""}
+            `
+            : `
+              <div class="image-gallery">
+                ${topicImages.map(img => `
+                  <a href="${img.image_url}" target="_blank" rel="noopener" class="image-gallery-item">
+                    <img src="${img.image_url}" alt="">
+                  </a>
+                `).join("")}
+              </div>
+            `
+        ) : ""}
         ${canEditTopic ? `
           <div style="margin-top:12px;">
             <button class="admin-btn" id="editTopicBtn">Edit</button>
@@ -426,15 +434,21 @@
     ` : "";
 
     const images = (a.answer_images || []).slice().sort((x, y) => (x.sort_order || 0) - (y.sort_order || 0));
-    const imagesHtml = images.length > 0 ? `
-      <div class="image-gallery">
-        ${images.map(img => `
-          <a href="${img.image_url}" target="_blank" rel="noopener" class="image-gallery-item">
-            <img src="${img.image_url}" alt="">
-          </a>
-        `).join("")}
-      </div>
-    ` : "";
+    const imagesHtml = images.length === 0 ? "" : images.length === 1
+      ? `
+        <a href="${images[0].image_url}" target="_blank" rel="noopener">
+          <img src="${images[0].image_url}" alt="" class="topic-image-single">
+        </a>
+      `
+      : `
+        <div class="image-gallery">
+          ${images.map(img => `
+            <a href="${img.image_url}" target="_blank" rel="noopener" class="image-gallery-item">
+              <img src="${img.image_url}" alt="">
+            </a>
+          `).join("")}
+        </div>
+      `;
 
     return `
       <div class="answer-card ${cardClass}" id="answer-${a.id}">
